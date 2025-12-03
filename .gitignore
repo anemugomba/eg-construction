@@ -1,0 +1,104 @@
+# =============================================================================
+# Laravel Backend
+# =============================================================================
+
+# Environment files
+.env
+.env.backup
+.env.production
+.env.*.local
+
+# Laravel specific
+/vendor
+/storage/*.key
+/storage/pail
+/public/build
+/public/hot
+/public/storage
+Homestead.json
+Homestead.yaml
+auth.json
+
+# Laravel cache & logs
+*.log
+/bootstrap/cache/*.php
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+
+# PHPUnit
+.phpunit.result.cache
+/.phpunit.cache
+phpunit.xml.bak
+
+# =============================================================================
+# Next.js Frontend
+# =============================================================================
+
+# Dependencies
+/frontend/node_modules
+
+# Next.js build output
+/frontend/.next
+/frontend/out
+/frontend/build
+
+# Next.js environment
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+/frontend/.env*.local
+
+# Next.js debug
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+/frontend/.pnpm-debug.log*
+
+# Vercel
+/frontend/.vercel
+
+# TypeScript
+/frontend/*.tsbuildinfo
+/frontend/next-env.d.ts
+
+# =============================================================================
+# Root / Monorepo
+# =============================================================================
+
+# Root dependencies
+/node_modules
+package-lock.json
+
+# =============================================================================
+# IDE & Editors
+# =============================================================================
+
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+.phpactor.json
+*.swp
+*.swo
+*~
+
+# =============================================================================
+# OS Files
+# =============================================================================
+
+.DS_Store
+Thumbs.db
+*.orig
+
+# =============================================================================
+# Debug & Testing
+# =============================================================================
+
+coverage/
+.nyc_output/
+*.lcov
+.idea
+/.claude

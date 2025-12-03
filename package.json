@@ -1,0 +1,19 @@
+{
+  "name": "eg-construction",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EG Construction - Laravel API + Next.js Frontend",
+  "scripts": {
+    "dev": "concurrently -n \"api,web\" -c \"blue,green\" \"npm run dev:api\" \"npm run dev:frontend\"",
+    "dev:api": "php artisan serve --port=8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "start:frontend": "cd frontend && npm run start",
+    "install:frontend": "cd frontend && npm install",
+    "lint:frontend": "cd frontend && npm run lint",
+    "setup": "composer install && npm run install:frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
