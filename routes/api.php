@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\VehicleController;
+use App\Http\Controllers\Api\VehicleTypeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -29,4 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+    // Vehicles
+    Route::apiResource('vehicles', VehicleController::class);
+    Route::get('/vehicle-types', [VehicleTypeController::class, 'index']);
 });
