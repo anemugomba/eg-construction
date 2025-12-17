@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'admin@egconstruction.com'],
             [
-                'name' => 'Admin User',
+                'name' => 'Anesu Cain Mugomba',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
             ]

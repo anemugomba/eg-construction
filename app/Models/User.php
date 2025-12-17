@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -21,7 +22,11 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
+        'notify_email',
+        'notify_sms',
+        'notify_whatsapp',
     ];
 
     /**
@@ -44,6 +49,21 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'notify_email' => 'boolean',
+            'notify_sms' => 'boolean',
+            'notify_whatsapp' => 'boolean',
         ];
+    }
+
+    public function appNotifications(): HasMany
+    {
+        return $this->hasMany(Notification::class)->orderBy('created_at', 'desc');
+    }
+
+    public function unreadAppNotifications(): HasMany
+    {
+        return $this->hasMany(Notification::class)
+            ->whereNull('read_at')
+            ->orderBy('created_at', 'desc');
     }
 }
