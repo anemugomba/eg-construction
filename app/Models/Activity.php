@@ -20,6 +20,9 @@ class Activity extends Model
     public const TYPE_VEHICLE_UPDATED = 'vehicle_updated';
     public const TYPE_VEHICLE_DELETED = 'vehicle_deleted';
     public const TYPE_PENALTY_INCURRED = 'penalty_incurred';
+    public const TYPE_EXEMPTION_STARTED = 'exemption_started';
+    public const TYPE_EXEMPTION_ENDED = 'exemption_ended';
+    public const TYPE_EXEMPTION_CANCELLED = 'exemption_cancelled';
 
     public function vehicle(): BelongsTo
     {

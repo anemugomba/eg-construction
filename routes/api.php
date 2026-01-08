@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TaxPeriodController;
 use App\Http\Controllers\Api\UserPreferencesController;
 use App\Http\Controllers\Api\VehicleController;
+use App\Http\Controllers\Api\VehicleExemptionController;
 use App\Http\Controllers\Api\VehicleTypeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -59,6 +60,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('vehicles/{vehicle}/tax-periods', [TaxPeriodController::class, 'store']);
     Route::put('tax-periods/{taxPeriod}', [TaxPeriodController::class, 'update']);
     Route::delete('tax-periods/{taxPeriod}', [TaxPeriodController::class, 'destroy']);
+
+    // Vehicle Exemptions
+    Route::get('vehicles/{vehicle}/exemptions', [VehicleExemptionController::class, 'index']);
+    Route::post('vehicles/{vehicle}/exemptions', [VehicleExemptionController::class, 'store']);
+    Route::get('vehicles/{vehicle}/exemptions/current', [VehicleExemptionController::class, 'current']);
+    Route::get('exemptions/{exemption}', [VehicleExemptionController::class, 'show']);
+    Route::put('exemptions/{exemption}', [VehicleExemptionController::class, 'update']);
+    Route::post('exemptions/{exemption}/end', [VehicleExemptionController::class, 'endExemption']);
+    Route::delete('exemptions/{exemption}', [VehicleExemptionController::class, 'destroy']);
 
     // Dashboard
     Route::get('dashboard/summary', [DashboardController::class, 'summary']);

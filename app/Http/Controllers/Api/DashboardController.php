@@ -17,9 +17,9 @@ class DashboardController extends Controller
         $in30Days = $today->copy()->addDays(30);
         $grace30Days = $today->copy()->subDays(30);
 
-        // Get all active vehicles with their current tax periods
+        // Get all active vehicles with their current tax periods and exemptions
         $vehicles = Vehicle::active()
-            ->with('currentTaxPeriod')
+            ->with(['currentTaxPeriod', 'currentExemption'])
             ->get();
 
         $totalVehicles = $vehicles->count();
@@ -27,11 +27,15 @@ class DashboardController extends Controller
         $overdue = 0;
         $inPenalty = 0;
         $valid = 0;
+        $exempted = 0;
 
         foreach ($vehicles as $vehicle) {
             $taxStatus = $vehicle->tax_status;
 
             switch ($taxStatus) {
+                case 'exempted':
+                    $exempted++;
+                    break;
                 case 'valid':
                     $valid++;
                     break;
@@ -47,8 +51,10 @@ class DashboardController extends Controller
             }
         }
 
+        // Exempted vehicles count as compliant (they're legally off-road)
+        $compliantCount = $valid + $exempted;
         $compliancePercentage = $totalVehicles > 0
-            ? round(($valid / $totalVehicles) * 100, 1)
+            ? round(($compliantCount / $totalVehicles) * 100, 1)
             : 0;
 
         return response()->json([
@@ -57,6 +63,7 @@ class DashboardController extends Controller
             'overdue' => $overdue,
             'in_penalty' => $inPenalty,
             'valid' => $valid,
+            'exempted' => $exempted,
             'compliance_percentage' => $compliancePercentage,
         ]);
     }
@@ -70,12 +77,18 @@ class DashboardController extends Controller
         // 1. Expiring within 7 days
         // 2. Already expired (overdue)
         // 3. In penalty zone
+        // Excludes exempted vehicles
         $vehicles = Vehicle::active()
-            ->with(['currentTaxPeriod', 'vehicleType'])
+            ->with(['currentTaxPeriod', 'vehicleType', 'currentExemption'])
             ->get()
             ->filter(function ($vehicle) use ($in7Days) {
                 $taxStatus = $vehicle->tax_status;
                 $daysRemaining = $vehicle->days_remaining;
+
+                // Skip exempted vehicles
+                if ($taxStatus === 'exempted') {
+                    return false;
+                }
 
                 // No tax period at all
                 if ($taxStatus === 'no_tax') {

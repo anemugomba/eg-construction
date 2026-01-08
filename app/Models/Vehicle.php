@@ -32,7 +32,7 @@ class Vehicle extends Model
         'year_of_manufacture' => 'integer',
     ];
 
-    protected $appends = ['tax_status', 'tax_expiry_date', 'days_remaining'];
+    protected $appends = ['tax_status', 'tax_expiry_date', 'days_remaining', 'is_exempted', 'exemption_end_date'];
 
     public function vehicleType(): BelongsTo
     {
@@ -51,10 +51,42 @@ class Vehicle extends Model
             ->latest();
     }
 
+    public function exemptions(): HasMany
+    {
+        return $this->hasMany(VehicleExemption::class)->orderBy('end_date', 'desc');
+    }
+
+    public function currentExemption(): HasOne
+    {
+        return $this->hasOne(VehicleExemption::class)
+            ->where('status', 'active')
+            ->where('end_date', '>=', Carbon::today())
+            ->latest();
+    }
+
+    protected function isExempted(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->currentExemption !== null
+        );
+    }
+
+    protected function exemptionEndDate(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->currentExemption?->end_date?->format('Y-m-d')
+        );
+    }
+
     protected function taxStatus(): Attribute
     {
         return Attribute::make(
             get: function () {
+                // Check if exempted first
+                if ($this->currentExemption) {
+                    return 'exempted';
+                }
+
                 $currentPeriod = $this->currentTaxPeriod;
                 if (!$currentPeriod) {
                     return 'no_tax';
@@ -102,5 +134,21 @@ class Vehicle extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');
+    }
+
+    public function scopeExempted(Builder $query): Builder
+    {
+        return $query->whereHas('exemptions', function ($q) {
+            $q->where('status', 'active')
+              ->where('end_date', '>=', Carbon::today());
+        });
+    }
+
+    public function scopeNotExempted(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('exemptions', function ($q) {
+            $q->where('status', 'active')
+              ->where('end_date', '>=', Carbon::today());
+        });
     }
 }

@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Models\TaxPeriod;
 use App\Models\Vehicle;
+use App\Models\VehicleExemption;
 use App\Observers\TaxPeriodObserver;
+use App\Observers\VehicleExemptionObserver;
 use App\Observers\VehicleObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         // Register observers
         Vehicle::observe(VehicleObserver::class);
         TaxPeriod::observe(TaxPeriodObserver::class);
+        VehicleExemption::observe(VehicleExemptionObserver::class);
 
         // Rate limit for email/whatsapp notifications: 10 per minute
         RateLimiter::for('notifications', function (object $job) {
