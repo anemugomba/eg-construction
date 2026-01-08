@@ -63,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard
     Route::get('dashboard/summary', [DashboardController::class, 'summary']);
     Route::get('dashboard/alerts', [DashboardController::class, 'alerts']);
+    Route::get('dashboard/activity', [DashboardController::class, 'activity']);
 
     // User Preferences
     Route::get('user/preferences', [UserPreferencesController::class, 'show']);

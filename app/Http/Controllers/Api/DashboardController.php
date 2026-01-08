@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Activity;
 use App\Models\Vehicle;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -24,11 +26,15 @@ class DashboardController extends Controller
         $expiringSoon = 0;
         $overdue = 0;
         $inPenalty = 0;
+        $valid = 0;
 
         foreach ($vehicles as $vehicle) {
             $taxStatus = $vehicle->tax_status;
 
             switch ($taxStatus) {
+                case 'valid':
+                    $valid++;
+                    break;
                 case 'expiring_soon':
                     $expiringSoon++;
                     break;
@@ -41,11 +47,17 @@ class DashboardController extends Controller
             }
         }
 
+        $compliancePercentage = $totalVehicles > 0
+            ? round(($valid / $totalVehicles) * 100, 1)
+            : 0;
+
         return response()->json([
             'total_vehicles' => $totalVehicles,
             'expiring_soon' => $expiringSoon,
             'overdue' => $overdue,
             'in_penalty' => $inPenalty,
+            'valid' => $valid,
+            'compliance_percentage' => $compliancePercentage,
         ]);
     }
 
@@ -108,6 +120,29 @@ class DashboardController extends Controller
         return response()->json([
             'data' => $vehicles,
             'count' => $vehicles->count(),
+        ]);
+    }
+
+    public function activity(Request $request): JsonResponse
+    {
+        $limit = $request->input('limit', 10);
+
+        $activities = Activity::orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get()
+            ->map(function ($activity) {
+                return [
+                    'id' => $activity->id,
+                    'type' => $activity->type,
+                    'message' => $activity->message,
+                    'vehicle_id' => $activity->vehicle_id,
+                    'vehicle_name' => $activity->vehicle_name,
+                    'created_at' => $activity->created_at->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'data' => $activities,
         ]);
     }
 }
