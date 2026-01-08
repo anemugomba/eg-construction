@@ -27,8 +27,10 @@ class TaxPeriodController extends Controller
         $validated = $request->validate([
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
-            'amount_paid' => 'required|numeric|min:0',
+            'amount_paid' => 'nullable|numeric|min:0',
         ]);
+
+        $validated['amount_paid'] = $validated['amount_paid'] ?? 0;
 
         // Check if this is a late renewal (penalty)
         $previousPeriod = $vehicle->taxPeriods()
@@ -66,8 +68,10 @@ class TaxPeriodController extends Controller
         $validated = $request->validate([
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
-            'amount_paid' => 'required|numeric|min:0',
+            'amount_paid' => 'nullable|numeric|min:0',
         ]);
+
+        $validated['amount_paid'] = $validated['amount_paid'] ?? 0;
 
         $taxPeriod->update($validated);
 
