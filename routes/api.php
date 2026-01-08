@@ -21,10 +21,22 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/health', fn () => response()->json([
-    'status' => 'ok',
-    'timestamp' => now()->toIso8601String(),
-]));
+Route::get('/gestalt', function () {
+    $dbConnected = false;
+    try {
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $dbConnected = true;
+    } catch (\Exception $e) {
+        $dbConnected = false;
+    }
+
+    return response()->json([
+        'status' => $dbConnected ? 'ok' : 'degraded',
+        'api' => 'running',
+        'database' => $dbConnected ? 'connected' : 'disconnected',
+        'timestamp' => now()->toIso8601String(),
+    ], $dbConnected ? 200 : 503);
+});
 
 // Auth routes
 Route::post('/auth/login', [AuthController::class, 'login']);

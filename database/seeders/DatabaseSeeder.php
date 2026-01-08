@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             VehicleTypeSeeder::class,
             VehicleSeeder::class,
             TaxPeriodSeeder::class,
+            SettingsSeeder::class,
         ]);
     }
 }
