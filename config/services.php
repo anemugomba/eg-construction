@@ -36,4 +36,15 @@ return [
         ],
     ],
 
+    'whatsapp' => [
+        'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+    ],
+
+    'africastalking' => [
+        'username' => env('AT_USERNAME'),
+        'api_key' => env('AT_API_KEY'),
+        'sender_id' => env('AT_SENDER_ID'), // Optional: your registered sender ID
+    ],
+
 ];

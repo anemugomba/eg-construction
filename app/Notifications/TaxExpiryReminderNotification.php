@@ -4,19 +4,19 @@ namespace App\Notifications;
 
 class TaxExpiryReminderNotification extends TaxNotification
 {
-    protected function getNotificationType(): string
+    public function getNotificationType(): string
     {
         return 'tax_expiry_reminder';
     }
 
-    protected function getSubject(): string
+    public function getSubject(): string
     {
         $days = abs($this->daysBeforeExpiry ?? 0);
         $dayWord = $days === 1 ? 'day' : 'days';
         return "Tax Expiry Reminder: {$this->vehicle->reference_name} - {$days} {$dayWord} remaining";
     }
 
-    protected function getBodyText(): string
+    public function getBodyText(): string
     {
         $days = abs($this->daysBeforeExpiry ?? 0);
         $dayWord = $days === 1 ? 'day' : 'days';
