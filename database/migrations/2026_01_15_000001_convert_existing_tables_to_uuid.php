@@ -289,7 +289,10 @@ return new class extends Migration
                 DB::statement("ALTER TABLE `{$table}` ADD PRIMARY KEY (`id`)");
             }
 
-            // Step 6: Re-add foreign key constraints
+            // Step 6: Fix composite primary keys on pivot tables
+            $this->fixPivotTablePrimaryKeys();
+
+            // Step 7: Re-add foreign key constraints
             $this->addForeignKeyConstraints();
 
         } finally {
@@ -306,6 +309,82 @@ return new class extends Migration
         // This migration is not easily reversible
         // A full rollback would require restoring the original bigint IDs
         throw new \RuntimeException('This migration cannot be reversed. Please restore from backup.');
+    }
+
+    /**
+     * Fix composite primary keys on pivot tables after column conversion.
+     */
+    private function fixPivotTablePrimaryKeys(): void
+    {
+        // user_sites has composite primary key (user_id, site_id)
+        if (Schema::hasTable('user_sites')) {
+            // First drop all foreign keys on this table
+            $this->dropAllForeignKeysOnTable('user_sites');
+
+            // Then drop and recreate primary key
+            $hasPK = $this->tableHasPrimaryKey('user_sites');
+            if ($hasPK) {
+                DB::statement('ALTER TABLE `user_sites` DROP PRIMARY KEY');
+            }
+            DB::statement('ALTER TABLE `user_sites` ADD PRIMARY KEY (`user_id`, `site_id`)');
+        }
+
+        // machine_type_checklist_items has composite primary key
+        if (Schema::hasTable('machine_type_checklist_items')) {
+            $this->dropAllForeignKeysOnTable('machine_type_checklist_items');
+            $hasPK = $this->tableHasPrimaryKey('machine_type_checklist_items');
+            if ($hasPK) {
+                DB::statement('ALTER TABLE `machine_type_checklist_items` DROP PRIMARY KEY');
+            }
+            DB::statement('ALTER TABLE `machine_type_checklist_items` ADD PRIMARY KEY (`machine_type_id`, `checklist_item_id`)');
+        }
+
+        // inspection_template_items has composite primary key
+        if (Schema::hasTable('inspection_template_items')) {
+            $this->dropAllForeignKeysOnTable('inspection_template_items');
+            $hasPK = $this->tableHasPrimaryKey('inspection_template_items');
+            if ($hasPK) {
+                DB::statement('ALTER TABLE `inspection_template_items` DROP PRIMARY KEY');
+            }
+            DB::statement('ALTER TABLE `inspection_template_items` ADD PRIMARY KEY (`template_id`, `checklist_item_id`)');
+        }
+    }
+
+    /**
+     * Drop all foreign key constraints on a table.
+     */
+    private function dropAllForeignKeysOnTable(string $table): void
+    {
+        $foreignKeys = DB::select("
+            SELECT CONSTRAINT_NAME
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = '{$table}'
+            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ");
+
+        foreach ($foreignKeys as $fk) {
+            try {
+                DB::statement("ALTER TABLE `{$table}` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
+            } catch (\Exception $e) {
+                // Ignore if already dropped
+            }
+        }
+    }
+
+    /**
+     * Check if a table has a primary key.
+     */
+    private function tableHasPrimaryKey(string $table): bool
+    {
+        $result = DB::select("
+            SELECT COUNT(*) as cnt
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = '{$table}'
+            AND CONSTRAINT_TYPE = 'PRIMARY KEY'
+        ");
+        return $result[0]->cnt > 0;
     }
 
     /**

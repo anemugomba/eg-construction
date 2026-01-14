@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('user_sites', function (Blueprint $table) {
-            // Note: users table still uses bigint IDs (existing table)
+            // Note: user_id will be converted to UUID by later migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('site_id')->constrained()->cascadeOnDelete();
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
 
             $table->primary(['user_id', 'site_id']);
         });

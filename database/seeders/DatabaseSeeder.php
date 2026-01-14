@@ -15,13 +15,15 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            // Core user and settings
-            UserSeeder::class,
+            // Settings first (no dependencies)
             SettingsSeeder::class,
 
-            // Fleet management reference data
+            // Fleet management reference data (before users for site assignments)
             SiteSeeder::class,
             MachineTypeSeeder::class,
+
+            // Users (after sites so we can assign site DPFs)
+            UserSeeder::class,
 
             // Vehicle data
             VehicleTypeSeeder::class,

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\PersonalAccessToken;
 use App\Models\TaxPeriod;
 use App\Models\Vehicle;
 use App\Models\VehicleExemption;
@@ -11,6 +12,7 @@ use App\Observers\VehicleObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Use custom PersonalAccessToken model with UUIDs
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+
         // Register observers
         Vehicle::observe(VehicleObserver::class);
         TaxPeriod::observe(TaxPeriodObserver::class);
