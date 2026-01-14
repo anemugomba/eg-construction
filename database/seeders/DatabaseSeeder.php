@@ -15,11 +15,23 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            // Core user and settings
             UserSeeder::class,
+            SettingsSeeder::class,
+
+            // Fleet management reference data
+            SiteSeeder::class,
+            MachineTypeSeeder::class,
+
+            // Vehicle data
             VehicleTypeSeeder::class,
             VehicleSeeder::class,
             TaxPeriodSeeder::class,
-            SettingsSeeder::class,
+
+            // Inspection system
+            ChecklistSeeder::class,
+            InspectionTemplateSeeder::class,
+            ComponentSeeder::class,
         ]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class TaxPeriod extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
         'vehicle_id',
@@ -85,7 +86,7 @@ class TaxPeriod extends Model
         return $query->where('status', 'active');
     }
 
-    public function scopeForVehicle(Builder $query, int $vehicleId): Builder
+    public function scopeForVehicle(Builder $query, string $vehicleId): Builder
     {
         return $query->where('vehicle_id', $vehicleId);
     }

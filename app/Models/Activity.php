@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Activity extends Model
 {
+    use HasUuids;
     protected $fillable = [
         'type',
         'message',
@@ -29,7 +31,7 @@ class Activity extends Model
         return $this->belongsTo(Vehicle::class);
     }
 
-    public static function log(string $type, string $message, ?int $vehicleId = null, ?string $vehicleName = null): self
+    public static function log(string $type, string $message, ?string $vehicleId = null, ?string $vehicleName = null): self
     {
         return self::create([
             'type' => $type,

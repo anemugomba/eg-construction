@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
 
 class Notification extends Model
 {
+    use HasUuids;
     protected $fillable = [
         'user_id',
         'vehicle_id',
@@ -46,7 +48,7 @@ class Notification extends Model
         return $this->belongsTo(TaxPeriod::class);
     }
 
-    public function scopeForUser(Builder $query, int $userId): Builder
+    public function scopeForUser(Builder $query, string $userId): Builder
     {
         return $query->where('user_id', $userId);
     }
