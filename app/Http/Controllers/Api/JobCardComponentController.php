@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\ComponentReplacement;
+use App\Models\JobCard;
+use App\Models\JobCardComponent;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class JobCardComponentController extends Controller
+{
+    /**
+     * Display components for a job card.
+     */
+    public function index(JobCard $jobCard): JsonResponse
+    {
+        $components = $jobCard->components()->with('component')->get();
+
+        return response()->json([
+            'data' => $components,
+        ]);
+    }
+
+    /**
+     * Store a new component for a job card.
+     */
+    public function store(Request $request, JobCard $jobCard): JsonResponse
+    {
+        // Can only add components to draft or rejected job cards
+        if (!$jobCard->canBeEdited()) {
+            return response()->json([
+                'message' => 'Components can only be added to draft or rejected job cards',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'component_id' => 'nullable|exists:components,id',
+            'component_description' => 'required|string|max:255',
+            'action_taken' => ['required', Rule::in(['repaired', 'replaced', 'adjusted', 'other'])],
+            'reading_at_action' => 'nullable|integer|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $validated['job_card_id'] = $jobCard->id;
+
+        $component = JobCardComponent::create($validated);
+
+        return response()->json([
+            'message' => 'Component added successfully',
+            'data' => $component->load('component'),
+        ], 201);
+    }
+
+    /**
+     * Update a job card component.
+     */
+    public function update(Request $request, JobCardComponent $jobCardComponent): JsonResponse
+    {
+        $jobCard = $jobCardComponent->jobCard;
+
+        // Can only update components on draft or rejected job cards
+        if (!$jobCard->canBeEdited()) {
+            return response()->json([
+                'message' => 'Components can only be updated on draft or rejected job cards',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'component_id' => 'nullable|exists:components,id',
+            'component_description' => 'sometimes|required|string|max:255',
+            'action_taken' => ['sometimes', 'required', Rule::in(['repaired', 'replaced', 'adjusted', 'other'])],
+            'reading_at_action' => 'nullable|integer|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $jobCardComponent->update($validated);
+
+        return response()->json([
+            'message' => 'Component updated successfully',
+            'data' => $jobCardComponent->fresh()->load('component'),
+        ]);
+    }
+
+    /**
+     * Remove a component from a job card.
+     */
+    public function destroy(Request $request, JobCardComponent $jobCardComponent): JsonResponse
+    {
+        $jobCard = $jobCardComponent->jobCard;
+
+        // Can only remove components from draft or rejected job cards
+        if (!$jobCard->canBeEdited()) {
+            return response()->json([
+                'message' => 'Components can only be removed from draft or rejected job cards',
+            ], 422);
+        }
+
+        $jobCardComponent->delete();
+
+        return response()->json([
+            'message' => 'Component removed successfully',
+        ]);
+    }
+}
