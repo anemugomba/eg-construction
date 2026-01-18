@@ -147,4 +147,7 @@ Route::prefix('reports')->group(function () {
     Route::get('component-lifespan', [ReportController::class, 'componentLifespan']);
     Route::get('site-performance', [ReportController::class, 'sitePerformance']);
     Route::get('cost-analysis', [ReportController::class, 'costAnalysis']);
+    Route::get('inspection-history', [ReportController::class, 'inspectionHistory']);
+    // Export endpoints
+    Route::get('{reportType}/export', [ReportController::class, 'export']);
 });

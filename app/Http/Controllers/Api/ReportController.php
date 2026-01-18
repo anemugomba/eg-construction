@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Inspection;
 use App\Models\JobCard;
 use App\Models\Service;
 use App\Models\Site;
@@ -150,6 +151,45 @@ class ReportController extends Controller
         return response()->json([
             'summary' => $summary,
             'data' => $jobCards,
+        ]);
+    }
+
+    /**
+     * Inspection history report.
+     */
+    public function inspectionHistory(Request $request): JsonResponse
+    {
+        $query = Inspection::with(['vehicle', 'site', 'template', 'submittedByUser', 'approvedByUser'])
+            ->where('status', 'approved');
+
+        if ($request->filled('vehicle_id')) {
+            $query->where('vehicle_id', $request->vehicle_id);
+        }
+
+        if ($request->filled('site_id')) {
+            $query->where('site_id', $request->site_id);
+        }
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('inspection_date', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('inspection_date', '<=', $request->end_date);
+        }
+
+        $query->orderBy('inspection_date', 'desc');
+
+        $inspections = $query->get();
+
+        $summary = [
+            'total_inspections' => $inspections->count(),
+            'by_template' => $inspections->groupBy('template.name')->map->count(),
+        ];
+
+        return response()->json([
+            'summary' => $summary,
+            'data' => $inspections,
         ]);
     }
 
@@ -302,6 +342,24 @@ class ReportController extends Controller
             ],
             'grand_total' => $serviceCosts->sum('total_cost') + $jobCardCosts->sum('total_cost'),
         ]);
+    }
+
+    /**
+     * Export report to Excel or CSV.
+     */
+    public function export(Request $request, string $reportType): JsonResponse
+    {
+        $format = $request->get('format', 'xlsx');
+
+        // For now, return a message that export is coming soon
+        // Full implementation would generate the file and return a download URL
+        return response()->json([
+            'message' => 'Export feature coming soon',
+            'report_type' => $reportType,
+            'format' => $format,
+            'download_url' => null,
+            'filename' => null,
+        ], 501); // 501 Not Implemented
     }
 
     /**
