@@ -16,8 +16,8 @@ class JobCardComponent extends Model
     protected $fillable = [
         'job_card_id',
         'component_id',
-        'component_description',
-        'action_taken',
+        'name',
+        'action',
         'reading_at_action',
         'notes',
         'created_by',
@@ -49,7 +49,7 @@ class JobCardComponent extends Model
      */
     public function wasReplaced(): bool
     {
-        return $this->action_taken === 'replaced';
+        return $this->action === 'replaced';
     }
 
     /**
@@ -57,6 +57,6 @@ class JobCardComponent extends Model
      */
     public function wasRepaired(): bool
     {
-        return $this->action_taken === 'repaired';
+        return $this->action === 'repaired';
     }
 }

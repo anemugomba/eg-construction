@@ -50,12 +50,26 @@ class InspectionController extends Controller
             $query->whereDate('inspection_date', '<=', $request->to_date);
         }
 
-        // Site DPFs can only see inspections from their sites
+        // Site-based scoping for non-admin users
         $user = $request->user();
         if ($user->role === User::ROLE_SITE_DPF) {
-            $userSiteIds = $user->sites()->pluck('sites.id');
-            $query->whereIn('site_id', $userSiteIds);
+            $userSiteIds = $user->sites()->pluck('sites.id')->toArray();
+            // Site DPFs can see inspections from their assigned sites OR inspections they created
+            $query->where(function ($q) use ($userSiteIds, $user) {
+                if (!empty($userSiteIds)) {
+                    $q->whereIn('site_id', $userSiteIds);
+                }
+                $q->orWhere('created_by', $user->id);
+            });
+        } elseif ($user->role === User::ROLE_DATA_ENTRY || $user->role === User::ROLE_VIEW_ONLY) {
+            $userSiteIds = $user->sites()->pluck('sites.id')->toArray();
+            if (!empty($userSiteIds)) {
+                $query->whereIn('site_id', $userSiteIds);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
+        // Admin and Senior DPF can see all inspections
 
         $sortBy = $request->get('sort_by', 'inspection_date');
         $sortDir = $request->get('sort_dir', 'desc');
@@ -113,7 +127,7 @@ class InspectionController extends Controller
         $inspection->load([
             'vehicle.machineType',
             'site',
-            'template',
+            'template.checklistItems.category',
             'submittedByUser',
             'approvedByUser',
             'results.checklistItem.category',

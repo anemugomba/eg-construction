@@ -17,7 +17,7 @@ class ServicePart extends Model
     protected $fillable = [
         'service_id',
         'part_catalog_id',
-        'part_description',
+        'name',
         'quantity',
         'unit_cost',
         'created_by',
@@ -28,6 +28,8 @@ class ServicePart extends Model
         'quantity' => 'integer',
         'unit_cost' => 'decimal:2',
     ];
+
+    protected $appends = ['total_cost'];
 
     /**
      * The service this part belongs to.

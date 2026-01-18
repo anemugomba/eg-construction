@@ -48,12 +48,26 @@ class JobCardController extends Controller
             $query->whereDate('job_date', '<=', $request->to_date);
         }
 
-        // Site DPFs can only see job cards from their sites
+        // Site-based scoping for non-admin users
         $user = $request->user();
         if ($user->role === User::ROLE_SITE_DPF) {
-            $userSiteIds = $user->sites()->pluck('sites.id');
-            $query->whereIn('site_id', $userSiteIds);
+            $userSiteIds = $user->sites()->pluck('sites.id')->toArray();
+            // Site DPFs can see job cards from their assigned sites OR job cards they created
+            $query->where(function ($q) use ($userSiteIds, $user) {
+                if (!empty($userSiteIds)) {
+                    $q->whereIn('site_id', $userSiteIds);
+                }
+                $q->orWhere('created_by', $user->id);
+            });
+        } elseif ($user->role === User::ROLE_DATA_ENTRY || $user->role === User::ROLE_VIEW_ONLY) {
+            $userSiteIds = $user->sites()->pluck('sites.id')->toArray();
+            if (!empty($userSiteIds)) {
+                $query->whereIn('site_id', $userSiteIds);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
+        // Admin and Senior DPF can see all job cards
 
         $sortBy = $request->get('sort_by', 'job_date');
         $sortDir = $request->get('sort_dir', 'desc');
@@ -120,7 +134,7 @@ class JobCardController extends Controller
             'submittedByUser',
             'approvedByUser',
             'components.component',
-            'parts.partCatalog',
+            'parts.catalogEntry',
         ]);
 
         return response()->json([

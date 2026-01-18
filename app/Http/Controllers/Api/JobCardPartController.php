@@ -15,7 +15,7 @@ class JobCardPartController extends Controller
      */
     public function index(JobCard $jobCard): JsonResponse
     {
-        $parts = $jobCard->parts()->with('partCatalog')->get();
+        $parts = $jobCard->parts()->with('catalogEntry')->get();
 
         return response()->json([
             'data' => $parts,
@@ -37,31 +37,97 @@ class JobCardPartController extends Controller
 
         $validated = $request->validate([
             'part_catalog_id' => 'nullable|exists:parts_catalog,id',
-            'part_description' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'part_number' => 'nullable|string|max:100',
             'quantity' => 'required|integer|min:1',
             'unit_cost' => 'nullable|numeric|min:0',
         ]);
 
-        $validated['job_card_id'] = $jobCard->id;
-
-        $part = JobCardPart::create($validated);
+        $part = JobCardPart::create([
+            'job_card_id' => $jobCard->id,
+            'part_catalog_id' => $validated['part_catalog_id'] ?? null,
+            'name' => $validated['name'] ?? $validated['part_number'] ?? 'Part',
+            'quantity' => $validated['quantity'],
+            'unit_cost' => $validated['unit_cost'] ?? 0,
+        ]);
 
         // Update total parts cost
         $this->updateTotalPartsCost($jobCard);
 
         return response()->json([
             'message' => 'Part added successfully',
-            'data' => $part->load('partCatalog'),
+            'data' => $part->load('catalogEntry'),
         ], 201);
     }
 
     /**
-     * Remove a part from a job card.
+     * Update a job card part (nested route).
      */
-    public function destroy(Request $request, JobCardPart $jobCardPart): JsonResponse
+    public function update(Request $request, JobCard $jobCard, JobCardPart $jobCardPart): JsonResponse
     {
-        $jobCard = $jobCardPart->jobCard;
+        return $this->performUpdate($request, $jobCardPart, $jobCard);
+    }
 
+    /**
+     * Update a job card part (flat route).
+     */
+    public function updateFlat(Request $request, JobCardPart $jobCardPart): JsonResponse
+    {
+        return $this->performUpdate($request, $jobCardPart, $jobCardPart->jobCard);
+    }
+
+    /**
+     * Perform the actual update.
+     */
+    private function performUpdate(Request $request, JobCardPart $jobCardPart, JobCard $jobCard): JsonResponse
+    {
+        // Can only update parts on draft or rejected job cards
+        if (!$jobCard->canBeEdited()) {
+            return response()->json([
+                'message' => 'Parts can only be updated on draft or rejected job cards',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'part_catalog_id' => 'nullable|exists:parts_catalog,id',
+            'name' => 'nullable|string|max:255',
+            'part_number' => 'nullable|string|max:100',
+            'quantity' => 'sometimes|integer|min:1',
+            'unit_cost' => 'nullable|numeric|min:0',
+        ]);
+
+        $jobCardPart->update($validated);
+
+        // Update total parts cost
+        $this->updateTotalPartsCost($jobCard);
+
+        return response()->json([
+            'message' => 'Part updated successfully',
+            'data' => $jobCardPart->fresh()->load('catalogEntry'),
+        ]);
+    }
+
+    /**
+     * Remove a part from a job card (nested route).
+     */
+    public function destroy(Request $request, JobCard $jobCard, JobCardPart $jobCardPart): JsonResponse
+    {
+        return $this->performDestroy($jobCardPart, $jobCard);
+    }
+
+    /**
+     * Remove a part from a job card (flat route).
+     */
+    public function destroyFlat(Request $request, JobCardPart $jobCardPart): JsonResponse
+    {
+        return $this->performDestroy($jobCardPart, $jobCardPart->jobCard);
+    }
+
+    /**
+     * Perform the actual delete.
+     */
+    private function performDestroy(JobCardPart $jobCardPart, JobCard $jobCard): JsonResponse
+    {
         // Can only remove parts from draft or rejected job cards
         if (!$jobCard->canBeEdited()) {
             return response()->json([

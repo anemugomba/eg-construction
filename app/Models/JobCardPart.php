@@ -17,7 +17,7 @@ class JobCardPart extends Model
     protected $fillable = [
         'job_card_id',
         'part_catalog_id',
-        'part_description',
+        'name',
         'quantity',
         'unit_cost',
         'created_by',
@@ -28,6 +28,8 @@ class JobCardPart extends Model
         'quantity' => 'integer',
         'unit_cost' => 'decimal:2',
     ];
+
+    protected $appends = ['total_cost'];
 
     /**
      * The job card this part belongs to.

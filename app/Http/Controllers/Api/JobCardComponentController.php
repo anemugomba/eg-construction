@@ -3,12 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ComponentReplacement;
 use App\Models\JobCard;
 use App\Models\JobCardComponent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class JobCardComponentController extends Controller
 {
@@ -38,15 +36,20 @@ class JobCardComponentController extends Controller
 
         $validated = $request->validate([
             'component_id' => 'nullable|exists:components,id',
-            'component_description' => 'required|string|max:255',
-            'action_taken' => ['required', Rule::in(['repaired', 'replaced', 'adjusted', 'other'])],
+            'name' => 'nullable|string|max:255',
+            'action' => 'nullable|string|max:100',
             'reading_at_action' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
         ]);
 
-        $validated['job_card_id'] = $jobCard->id;
-
-        $component = JobCardComponent::create($validated);
+        $component = JobCardComponent::create([
+            'job_card_id' => $jobCard->id,
+            'component_id' => $validated['component_id'] ?? null,
+            'name' => $validated['name'] ?? 'Component',
+            'action' => $validated['action'] ?? 'other',
+            'reading_at_action' => $validated['reading_at_action'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ]);
 
         return response()->json([
             'message' => 'Component added successfully',
@@ -55,9 +58,25 @@ class JobCardComponentController extends Controller
     }
 
     /**
-     * Update a job card component.
+     * Update a job card component (nested route).
      */
-    public function update(Request $request, JobCardComponent $jobCardComponent): JsonResponse
+    public function update(Request $request, JobCard $jobCard, JobCardComponent $jobCardComponent): JsonResponse
+    {
+        return $this->performUpdate($request, $jobCardComponent);
+    }
+
+    /**
+     * Update a job card component (flat route).
+     */
+    public function updateFlat(Request $request, JobCardComponent $jobCardComponent): JsonResponse
+    {
+        return $this->performUpdate($request, $jobCardComponent);
+    }
+
+    /**
+     * Perform the actual update.
+     */
+    private function performUpdate(Request $request, JobCardComponent $jobCardComponent): JsonResponse
     {
         $jobCard = $jobCardComponent->jobCard;
 
@@ -70,8 +89,8 @@ class JobCardComponentController extends Controller
 
         $validated = $request->validate([
             'component_id' => 'nullable|exists:components,id',
-            'component_description' => 'sometimes|required|string|max:255',
-            'action_taken' => ['sometimes', 'required', Rule::in(['repaired', 'replaced', 'adjusted', 'other'])],
+            'name' => 'nullable|string|max:255',
+            'action' => 'nullable|string|max:100',
             'reading_at_action' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
         ]);
@@ -85,9 +104,25 @@ class JobCardComponentController extends Controller
     }
 
     /**
-     * Remove a component from a job card.
+     * Remove a component from a job card (nested route).
      */
-    public function destroy(Request $request, JobCardComponent $jobCardComponent): JsonResponse
+    public function destroy(Request $request, JobCard $jobCard, JobCardComponent $jobCardComponent): JsonResponse
+    {
+        return $this->performDestroy($jobCardComponent);
+    }
+
+    /**
+     * Remove a component from a job card (flat route).
+     */
+    public function destroyFlat(Request $request, JobCardComponent $jobCardComponent): JsonResponse
+    {
+        return $this->performDestroy($jobCardComponent);
+    }
+
+    /**
+     * Perform the actual delete.
+     */
+    private function performDestroy(JobCardComponent $jobCardComponent): JsonResponse
     {
         $jobCard = $jobCardComponent->jobCard;
 

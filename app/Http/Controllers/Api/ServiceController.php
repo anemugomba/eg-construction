@@ -47,12 +47,29 @@ class ServiceController extends Controller
             $query->whereDate('service_date', '<=', $request->to_date);
         }
 
-        // Site DPFs can only see services from their sites
+        // Site-based scoping for non-admin users
         $user = $request->user();
         if ($user->role === User::ROLE_SITE_DPF) {
-            $userSiteIds = $user->sites()->pluck('sites.id');
-            $query->whereIn('site_id', $userSiteIds);
+            $userSiteIds = $user->sites()->pluck('sites.id')->toArray();
+            // Site DPFs can see services from their assigned sites OR services they created
+            $query->where(function ($q) use ($userSiteIds, $user) {
+                if (!empty($userSiteIds)) {
+                    $q->whereIn('site_id', $userSiteIds);
+                }
+                // Always allow seeing their own created services
+                $q->orWhere('created_by', $user->id);
+            });
+        } elseif ($user->role === User::ROLE_DATA_ENTRY || $user->role === User::ROLE_VIEW_ONLY) {
+            // Data entry and view-only users only see services from their assigned sites
+            $userSiteIds = $user->sites()->pluck('sites.id')->toArray();
+            if (!empty($userSiteIds)) {
+                $query->whereIn('site_id', $userSiteIds);
+            } else {
+                // No sites assigned = no services visible
+                $query->whereRaw('1 = 0');
+            }
         }
+        // Admin and Senior DPF can see all services
 
         $sortBy = $request->get('sort_by', 'service_date');
         $sortDir = $request->get('sort_dir', 'desc');
@@ -118,7 +135,7 @@ class ServiceController extends Controller
             'site',
             'submittedByUser',
             'approvedByUser',
-            'parts.partCatalog',
+            'parts.catalogEntry',
         ]);
 
         return response()->json([

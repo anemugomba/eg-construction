@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\InspectionTemplate;
 use App\Models\MachineType;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -176,6 +177,24 @@ class MachineTypeController extends Controller
         return response()->json([
             'message' => 'Checklist items updated successfully',
             'data' => $machineType->fresh()->load('checklistItems'),
+        ]);
+    }
+
+    /**
+     * Get inspection templates (returns all active templates for now).
+     * Note: Templates are not yet linked to machine types in the database.
+     */
+    public function inspectionTemplates(MachineType $machineType): JsonResponse
+    {
+        // Since there's no machine_type_id on inspection_templates yet,
+        // return all active templates for any machine type
+        $templates = InspectionTemplate::where('is_active', true)
+            ->withCount('checklistItems')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'data' => $templates,
         ]);
     }
 }

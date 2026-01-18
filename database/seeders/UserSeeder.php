@@ -237,9 +237,80 @@ class UserSeeder extends Seeder
         );
 
         // ===========================================
+        // TEST ACCOUNTS (for development/testing)
+        // ===========================================
+        $testAdmin = User::firstOrCreate(
+            ['email' => 'admin@test.com'],
+            [
+                'name' => 'Test Administrator',
+                'password' => $password,
+                'email_verified_at' => now(),
+                'role' => User::ROLE_ADMINISTRATOR,
+                'notify_email' => false,
+                'notify_sms' => false,
+                'notify_whatsapp' => false,
+            ]
+        );
+
+        $testSenior = User::firstOrCreate(
+            ['email' => 'senior@test.com'],
+            [
+                'name' => 'Test Senior DPF',
+                'password' => $password,
+                'email_verified_at' => now(),
+                'role' => User::ROLE_SENIOR_DPF,
+                'notify_email' => false,
+                'notify_sms' => false,
+                'notify_whatsapp' => false,
+            ]
+        );
+
+        $testSiteDpf = User::firstOrCreate(
+            ['email' => 'sitedpf@test.com'],
+            [
+                'name' => 'Test Site DPF',
+                'password' => $password,
+                'email_verified_at' => now(),
+                'role' => User::ROLE_SITE_DPF,
+                'notify_email' => false,
+                'notify_sms' => false,
+                'notify_whatsapp' => false,
+            ]
+        );
+
+        $testDataEntry = User::firstOrCreate(
+            ['email' => 'dataentry@test.com'],
+            [
+                'name' => 'Test Data Entry',
+                'password' => $password,
+                'email_verified_at' => now(),
+                'role' => User::ROLE_DATA_ENTRY,
+                'notify_email' => false,
+                'notify_sms' => false,
+                'notify_whatsapp' => false,
+            ]
+        );
+
+        $testViewer = User::firstOrCreate(
+            ['email' => 'viewer@test.com'],
+            [
+                'name' => 'Test View Only',
+                'password' => $password,
+                'email_verified_at' => now(),
+                'role' => User::ROLE_VIEW_ONLY,
+                'notify_email' => false,
+                'notify_sms' => false,
+                'notify_whatsapp' => false,
+            ]
+        );
+
+        // ===========================================
         // ASSIGN SITE DPF USERS TO THEIR SITES
         // ===========================================
         $this->assignUsersToSites($seniorDpf1, $seniorDpf2, $siteDpf1, $siteDpf2, $siteDpf3, $siteDpf4);
+
+        // Assign test users to sites (all sites for broader testing)
+        $this->assignTestUsersToSites($testSenior, $testSiteDpf, $testDataEntry, $testViewer);
     }
 
     /**
@@ -276,6 +347,38 @@ class UserSeeder extends Seeder
         }
         if ($siteDpf4 && $bulawayo) {
             $siteDpf4->sites()->syncWithoutDetaching([$bulawayo->id]);
+        }
+    }
+
+    /**
+     * Assign test users to sites for development/testing.
+     */
+    private function assignTestUsersToSites($testSenior, $testSiteDpf, $testDataEntry, $testViewer): void
+    {
+        $allSites = Site::pluck('id')->toArray();
+
+        if (count($allSites) === 0) {
+            return;
+        }
+
+        // Test Senior DPF has access to all sites
+        if ($testSenior) {
+            $testSenior->sites()->syncWithoutDetaching($allSites);
+        }
+
+        // Test Site DPF has access to all sites (for easier testing)
+        if ($testSiteDpf) {
+            $testSiteDpf->sites()->syncWithoutDetaching($allSites);
+        }
+
+        // Test Data Entry has access to first 2 sites
+        if ($testDataEntry && count($allSites) >= 2) {
+            $testDataEntry->sites()->syncWithoutDetaching(array_slice($allSites, 0, 2));
+        }
+
+        // Test Viewer has access to first site only
+        if ($testViewer && count($allSites) >= 1) {
+            $testViewer->sites()->syncWithoutDetaching([$allSites[0]]);
         }
     }
 }
