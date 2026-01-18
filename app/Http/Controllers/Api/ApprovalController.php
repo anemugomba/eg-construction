@@ -22,7 +22,15 @@ class ApprovalController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $type = $request->get('type'); // 'services', 'job_cards', 'inspections', or null for all
+        $type = $request->get('type'); // 'service(s)', 'job_card(s)', 'inspection(s)', or null for all
+
+        // Normalize singular to plural forms
+        $typeMap = [
+            'service' => 'services',
+            'job_card' => 'job_cards',
+            'inspection' => 'inspections',
+        ];
+        $type = $typeMap[$type] ?? $type;
 
         $results = [];
 
@@ -35,14 +43,13 @@ class ApprovalController extends Controller
                 ->map(fn ($s) => [
                     'type' => 'service',
                     'id' => $s->id,
-                    'vehicle' => $s->vehicle->reference_name ?? $s->vehicle->registration_number,
-                    'vehicle_id' => $s->vehicle_id,
-                    'site' => $s->site->name ?? null,
+                    'vehicle' => $s->vehicle,
+                    'site' => $s->site,
                     'description' => "{$s->service_type} service",
                     'date' => $s->service_date,
-                    'submitted_by' => $s->submittedByUser->name ?? null,
+                    'submitted_by' => $s->submittedByUser,
                     'submitted_at' => $s->submitted_at,
-                    'data' => $s,
+                    'item' => $s,
                 ]);
             $results = array_merge($results, $services->toArray());
         }
@@ -56,14 +63,13 @@ class ApprovalController extends Controller
                 ->map(fn ($jc) => [
                     'type' => 'job_card',
                     'id' => $jc->id,
-                    'vehicle' => $jc->vehicle->reference_name ?? $jc->vehicle->registration_number,
-                    'vehicle_id' => $jc->vehicle_id,
-                    'site' => $jc->site->name ?? null,
+                    'vehicle' => $jc->vehicle,
+                    'site' => $jc->site,
                     'description' => "{$jc->job_type}: " . substr($jc->description, 0, 50),
                     'date' => $jc->job_date,
-                    'submitted_by' => $jc->submittedByUser->name ?? null,
+                    'submitted_by' => $jc->submittedByUser,
                     'submitted_at' => $jc->submitted_at,
-                    'data' => $jc,
+                    'item' => $jc,
                 ]);
             $results = array_merge($results, $jobCards->toArray());
         }
@@ -77,14 +83,13 @@ class ApprovalController extends Controller
                 ->map(fn ($i) => [
                     'type' => 'inspection',
                     'id' => $i->id,
-                    'vehicle' => $i->vehicle->reference_name ?? $i->vehicle->registration_number,
-                    'vehicle_id' => $i->vehicle_id,
-                    'site' => $i->site->name ?? null,
+                    'vehicle' => $i->vehicle,
+                    'site' => $i->site,
                     'description' => $i->template->name ?? 'Inspection',
                     'date' => $i->inspection_date,
-                    'submitted_by' => $i->submittedByUser->name ?? null,
+                    'submitted_by' => $i->submittedByUser,
                     'submitted_at' => $i->submitted_at,
-                    'data' => $i,
+                    'item' => $i,
                 ]);
             $results = array_merge($results, $inspections->toArray());
         }
@@ -117,5 +122,124 @@ class ApprovalController extends Controller
         $counts['total'] = array_sum($counts);
 
         return response()->json($counts);
+    }
+
+    /**
+     * Batch approve multiple items.
+     */
+    public function batchApprove(Request $request): JsonResponse
+    {
+        // Only senior DPF or admin can approve
+        if (!in_array($request->user()->role, [User::ROLE_SENIOR_DPF, User::ROLE_ADMINISTRATOR])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.type' => 'required|in:service,job_card,inspection',
+            'items.*.id' => 'required|string',
+        ]);
+
+        $approved = [];
+        $failed = [];
+
+        foreach ($validated['items'] as $item) {
+            try {
+                $model = $this->resolveModel($item['type'], $item['id']);
+
+                if (!$model) {
+                    $failed[] = ['id' => $item['id'], 'error' => 'Not found'];
+                    continue;
+                }
+
+                if ($model->status !== 'pending') {
+                    $failed[] = ['id' => $item['id'], 'error' => 'Not in pending status'];
+                    continue;
+                }
+
+                $model->update([
+                    'status' => 'approved',
+                    'approved_by' => $request->user()->id,
+                    'approved_at' => now(),
+                ]);
+
+                $approved[] = $item['id'];
+            } catch (\Exception $e) {
+                $failed[] = ['id' => $item['id'], 'error' => $e->getMessage()];
+            }
+        }
+
+        return response()->json([
+            'approved' => $approved,
+            'failed' => $failed,
+            'approved_count' => count($approved),
+            'failed_count' => count($failed),
+        ]);
+    }
+
+    /**
+     * Batch reject multiple items.
+     */
+    public function batchReject(Request $request): JsonResponse
+    {
+        // Only senior DPF or admin can reject
+        if (!in_array($request->user()->role, [User::ROLE_SENIOR_DPF, User::ROLE_ADMINISTRATOR])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.type' => 'required|in:service,job_card,inspection',
+            'items.*.id' => 'required|string',
+            'rejection_reason' => 'required|string|min:10',
+        ]);
+
+        $rejected = [];
+        $failed = [];
+
+        foreach ($validated['items'] as $item) {
+            try {
+                $model = $this->resolveModel($item['type'], $item['id']);
+
+                if (!$model) {
+                    $failed[] = ['id' => $item['id'], 'error' => 'Not found'];
+                    continue;
+                }
+
+                if ($model->status !== 'pending') {
+                    $failed[] = ['id' => $item['id'], 'error' => 'Not in pending status'];
+                    continue;
+                }
+
+                $model->update([
+                    'status' => 'rejected',
+                    'rejection_reason' => $validated['rejection_reason'],
+                ]);
+
+                $rejected[] = $item['id'];
+            } catch (\Exception $e) {
+                $failed[] = ['id' => $item['id'], 'error' => $e->getMessage()];
+            }
+        }
+
+        return response()->json([
+            'rejected' => $rejected,
+            'failed' => $failed,
+            'rejected_count' => count($rejected),
+            'failed_count' => count($failed),
+        ]);
+    }
+
+    /**
+     * Resolve model by type and ID.
+     */
+    private function resolveModel(string $type, string $id)
+    {
+        return match ($type) {
+            'service' => Service::find($id),
+            'job_card' => JobCard::find($id),
+            'inspection' => Inspection::find($id),
+            default => null,
+        };
     }
 }

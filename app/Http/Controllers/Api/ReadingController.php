@@ -14,6 +14,40 @@ use Illuminate\Validation\Rule;
 class ReadingController extends Controller
 {
     /**
+     * Display all readings with optional filters.
+     */
+    public function all(Request $request): JsonResponse
+    {
+        $query = Reading::with(['vehicle', 'recordedByUser']);
+
+        if ($request->filled('vehicle_id')) {
+            $query->where('vehicle_id', $request->vehicle_id);
+        }
+
+        if ($request->filled('reading_type')) {
+            $query->where('reading_type', $request->reading_type);
+        }
+
+        if ($request->filled('source')) {
+            $query->where('source', $request->source);
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('recorded_at', '>=', $request->from_date);
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('recorded_at', '<=', $request->to_date);
+        }
+
+        $query->orderBy('recorded_at', 'desc');
+
+        $perPage = $request->get('per_page', 50);
+
+        return response()->json($query->paginate($perPage));
+    }
+
+    /**
      * Display readings for a vehicle.
      */
     public function index(Request $request, Vehicle $vehicle): JsonResponse
@@ -55,9 +89,12 @@ class ReadingController extends Controller
         }
 
         // Determine expected reading type based on vehicle/machine type
-        $expectedType = $vehicle->is_yellow_machine && $vehicle->machineType
-            ? $vehicle->machineType->tracking_unit
-            : 'kilometers';
+        // Yellow machines default to hours, regular vehicles to kilometers
+        if ($vehicle->machineType && $vehicle->machineType->tracking_unit) {
+            $expectedType = $vehicle->machineType->tracking_unit;
+        } else {
+            $expectedType = $vehicle->is_yellow_machine ? 'hours' : 'kilometers';
+        }
 
         $validated = $request->validate([
             'reading_value' => 'required|integer|min:0',
@@ -126,6 +163,8 @@ class ReadingController extends Controller
             'readings.*.reading_type' => ['sometimes', Rule::in(['hours', 'kilometers'])],
             'readings.*.source' => ['sometimes', Rule::in(['manual', 'telematics', 'import', 'adjustment'])],
             'readings.*.recorded_at' => 'sometimes|date',
+            'readings.*.is_anomaly_override' => 'boolean',
+            'readings.*.anomaly_reason' => 'required_if:readings.*.is_anomaly_override,true|nullable|string',
         ]);
 
         $results = [
@@ -139,9 +178,12 @@ class ReadingController extends Controller
                 $vehicle = Vehicle::find($readingData['vehicle_id']);
 
                 // Determine expected reading type
-                $expectedType = $vehicle->is_yellow_machine && $vehicle->machineType
-                    ? $vehicle->machineType->tracking_unit
-                    : 'kilometers';
+                // Yellow machines default to hours, regular vehicles to kilometers
+                if ($vehicle->machineType && $vehicle->machineType->tracking_unit) {
+                    $expectedType = $vehicle->machineType->tracking_unit;
+                } else {
+                    $expectedType = $vehicle->is_yellow_machine ? 'hours' : 'kilometers';
+                }
 
                 $readingData['reading_type'] = $readingData['reading_type'] ?? $expectedType;
                 $readingData['source'] = $readingData['source'] ?? 'manual';
@@ -155,13 +197,33 @@ class ReadingController extends Controller
                     ->first();
 
                 if ($lastReading && $readingData['reading_value'] < $lastReading->reading_value) {
-                    $results['failed'][] = [
-                        'index' => $index,
-                        'vehicle_id' => $vehicle->id,
-                        'error' => 'Reading value less than previous reading',
-                        'last_reading' => $lastReading->reading_value,
-                    ];
-                    continue;
+                    // Check if user is trying to override
+                    $isOverride = $readingData['is_anomaly_override'] ?? false;
+
+                    if (!$isOverride) {
+                        $results['failed'][] = [
+                            'index' => $index,
+                            'vehicle_id' => $vehicle->id,
+                            'error' => 'Reading value less than previous reading',
+                            'last_reading' => $lastReading->reading_value,
+                        ];
+                        continue;
+                    }
+
+                    // Only senior DPF or admin can override
+                    if (!in_array($request->user()->role, [User::ROLE_SENIOR_DPF, User::ROLE_ADMINISTRATOR])) {
+                        $results['failed'][] = [
+                            'index' => $index,
+                            'vehicle_id' => $vehicle->id,
+                            'error' => 'Only Senior DPF or Administrator can override anomalous readings',
+                            'last_reading' => $lastReading->reading_value,
+                        ];
+                        continue;
+                    }
+
+                    // Set anomaly fields for backwards reading
+                    $readingData['is_anomaly_override'] = true;
+                    $readingData['anomaly_reason'] = $readingData['anomaly_reason'] ?? 'Bulk correction';
                 }
 
                 $reading = Reading::create($readingData);

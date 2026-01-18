@@ -36,6 +36,7 @@ Route::get('sites/{site}/staff', [SiteController::class, 'staff']);
 Route::apiResource('machine-types', MachineTypeController::class);
 Route::get('machine-types/{machineType}/checklist-items', [MachineTypeController::class, 'checklistItems']);
 Route::post('machine-types/{machineType}/checklist-items', [MachineTypeController::class, 'syncChecklistItems']);
+Route::get('machine-types/{machineType}/inspection-templates', [MachineTypeController::class, 'inspectionTemplates']);
 
 // Checklists
 Route::get('checklist-categories', [ChecklistController::class, 'categories']);
@@ -48,6 +49,7 @@ Route::get('inspection-templates/{inspectionTemplate}/items', [InspectionTemplat
 Route::post('inspection-templates/{inspectionTemplate}/items', [InspectionTemplateController::class, 'syncItems']);
 
 // Readings
+Route::get('readings', [ReadingController::class, 'all']);
 Route::get('vehicles/{vehicle}/readings', [ReadingController::class, 'index']);
 Route::post('vehicles/{vehicle}/readings', [ReadingController::class, 'store']);
 Route::post('readings/bulk', [ReadingController::class, 'bulkStore']);
@@ -59,7 +61,10 @@ Route::post('services/{service}/approve', [ServiceController::class, 'approve'])
 Route::post('services/{service}/reject', [ServiceController::class, 'reject']);
 Route::get('services/{service}/parts', [ServicePartController::class, 'index']);
 Route::post('services/{service}/parts', [ServicePartController::class, 'store']);
-Route::delete('service-parts/{servicePart}', [ServicePartController::class, 'destroy']);
+Route::put('services/{service}/parts/{servicePart}', [ServicePartController::class, 'update']);
+Route::delete('services/{service}/parts/{servicePart}', [ServicePartController::class, 'destroy']);
+Route::put('service-parts/{servicePart}', [ServicePartController::class, 'updateFlat']);
+Route::delete('service-parts/{servicePart}', [ServicePartController::class, 'destroyFlat']);
 
 // Job Cards
 Route::apiResource('job-cards', JobCardController::class);
@@ -72,13 +77,18 @@ Route::post('job-cards/{jobCard}/resolve-watch-items', [JobCardController::class
 // Job Card Components
 Route::get('job-cards/{jobCard}/components', [JobCardComponentController::class, 'index']);
 Route::post('job-cards/{jobCard}/components', [JobCardComponentController::class, 'store']);
-Route::put('job-card-components/{jobCardComponent}', [JobCardComponentController::class, 'update']);
-Route::delete('job-card-components/{jobCardComponent}', [JobCardComponentController::class, 'destroy']);
+Route::put('job-cards/{jobCard}/components/{jobCardComponent}', [JobCardComponentController::class, 'update']);
+Route::delete('job-cards/{jobCard}/components/{jobCardComponent}', [JobCardComponentController::class, 'destroy']);
+Route::put('job-card-components/{jobCardComponent}', [JobCardComponentController::class, 'updateFlat']);
+Route::delete('job-card-components/{jobCardComponent}', [JobCardComponentController::class, 'destroyFlat']);
 
 // Job Card Parts
 Route::get('job-cards/{jobCard}/parts', [JobCardPartController::class, 'index']);
 Route::post('job-cards/{jobCard}/parts', [JobCardPartController::class, 'store']);
-Route::delete('job-card-parts/{jobCardPart}', [JobCardPartController::class, 'destroy']);
+Route::put('job-cards/{jobCard}/parts/{jobCardPart}', [JobCardPartController::class, 'update']);
+Route::delete('job-cards/{jobCard}/parts/{jobCardPart}', [JobCardPartController::class, 'destroy']);
+Route::put('job-card-parts/{jobCardPart}', [JobCardPartController::class, 'updateFlat']);
+Route::delete('job-card-parts/{jobCardPart}', [JobCardPartController::class, 'destroyFlat']);
 
 // Inspections
 Route::apiResource('inspections', InspectionController::class);
@@ -114,13 +124,20 @@ Route::get('vehicles/{vehicle}/services', [VehicleController::class, 'services']
 // Approvals Queue
 Route::get('approvals', [ApprovalController::class, 'index']);
 Route::get('approvals/count', [ApprovalController::class, 'count']);
+Route::post('approvals/batch-approve', [ApprovalController::class, 'batchApprove']);
+Route::post('approvals/batch-reject', [ApprovalController::class, 'batchReject']);
 
-// Fleet Dashboard
-Route::get('dashboard/fleet-summary', [DashboardController::class, 'fleetSummary']);
-Route::get('dashboard/pending-approvals', [DashboardController::class, 'pendingApprovals']);
-Route::get('dashboard/upcoming-services', [DashboardController::class, 'upcomingServices']);
-Route::get('dashboard/overdue-services', [DashboardController::class, 'overdueServices']);
-Route::get('dashboard/watch-list-summary', [DashboardController::class, 'watchListSummary']);
+// Fleet Dashboard (nested under /dashboard/fleet/)
+Route::prefix('dashboard/fleet')->group(function () {
+    Route::get('summary', [DashboardController::class, 'fleetSummary']);
+    Route::get('pending-approvals', [DashboardController::class, 'pendingApprovals']);
+    Route::get('upcoming-services', [DashboardController::class, 'upcomingServices']);
+    Route::get('overdue-services', [DashboardController::class, 'overdueServices']);
+    Route::get('watch-list-summary', [DashboardController::class, 'watchListSummary']);
+    Route::get('activity', [DashboardController::class, 'fleetActivity']);
+    Route::get('stale-readings', [DashboardController::class, 'staleReadings']);
+    Route::get('my-submissions', [DashboardController::class, 'mySubmissions']);
+});
 
 // Reports
 Route::prefix('reports')->group(function () {
