@@ -22,17 +22,19 @@ class DatabaseSeeder extends Seeder
             SiteSeeder::class,
             MachineTypeSeeder::class,
 
+            // Inspection system (before vehicle types so we can assign default templates)
+            ChecklistSeeder::class,
+            InspectionTemplateSeeder::class,
+
             // Users (after sites so we can assign site DPFs)
             UserSeeder::class,
 
-            // Vehicle data
+            // Vehicle data (after inspection templates for default template assignment)
             VehicleTypeSeeder::class,
             VehicleSeeder::class,
             TaxPeriodSeeder::class,
 
-            // Inspection system
-            ChecklistSeeder::class,
-            InspectionTemplateSeeder::class,
+            // Components
             ComponentSeeder::class,
         ]);
     }
