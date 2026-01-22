@@ -20,6 +20,7 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+            'device_name' => 'sometimes|string|max:255',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -30,11 +31,13 @@ class AuthController extends Controller
             ]);
         }
 
-        // Revoke existing tokens
-        $user->tokens()->delete();
+        $deviceName = $request->input('device_name', 'unknown-device');
 
-        // Create new token
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Revoke existing token for this device only (allows multiple device sessions)
+        $user->tokens()->where('name', $deviceName)->delete();
+
+        // Create new token for this device
+        $token = $user->createToken($deviceName)->plainTextToken;
 
         return response()->json([
             'user' => $user,
