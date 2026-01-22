@@ -15,8 +15,8 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('job_card_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('component_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('component_description', 255);
-            $table->enum('action_taken', ['repaired', 'replaced', 'adjusted', 'other']);
+            $table->string('name', 255);
+            $table->string('action', 100);
             $table->unsignedInteger('reading_at_action')->nullable();
             $table->text('notes')->nullable();
 
