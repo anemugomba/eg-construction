@@ -8,6 +8,7 @@ use App\Models\InspectionResult;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WatchListItem;
+use App\Services\ExpoNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,9 +114,21 @@ class InspectionController extends Controller
 
         $inspection = Inspection::create($validated);
 
+        // Send push notification to approvers for new inspection (exclude creator)
+        $inspection->load(['vehicle', 'site', 'template']);
+        if ($inspection->site) {
+            app(ExpoNotificationService::class)->notifyApprovers(
+                $inspection->site,
+                'New Inspection Created',
+                "Inspection for {$inspection->vehicle->fleet_number}",
+                ['type' => 'inspection', 'id' => $inspection->id],
+                $request->user()->id
+            );
+        }
+
         return response()->json([
             'message' => 'Inspection created successfully',
-            'data' => $inspection->load(['vehicle', 'site', 'template']),
+            'data' => $inspection,
         ], 201);
     }
 
@@ -205,6 +218,18 @@ class InspectionController extends Controller
 
         $inspection->submit($request->user()->id);
 
+        // Send push notification to approvers (exclude submitter)
+        $inspection->load(['vehicle', 'site']);
+        if ($inspection->site) {
+            app(ExpoNotificationService::class)->notifyApprovers(
+                $inspection->site,
+                'Inspection Pending Approval',
+                "Inspection for {$inspection->vehicle->fleet_number} needs approval",
+                ['type' => 'approval', 'id' => $inspection->id],
+                $request->user()->id
+            );
+        }
+
         return response()->json([
             'message' => 'Inspection submitted for approval',
             'data' => $inspection->fresh()->load(['vehicle', 'site', 'template', 'submittedByUser']),
@@ -231,6 +256,16 @@ class InspectionController extends Controller
 
         // Create watch list items for service/repair ratings
         $this->createWatchListItems($inspection, $request->user()->id);
+
+        // Notify the submitter
+        if ($inspection->submittedByUser) {
+            app(ExpoNotificationService::class)->sendToUser(
+                $inspection->submittedByUser,
+                'Inspection Approved',
+                "Your inspection has been approved",
+                ['type' => 'inspection', 'id' => $inspection->id]
+            );
+        }
 
         return response()->json([
             'message' => 'Inspection approved',
@@ -259,6 +294,16 @@ class InspectionController extends Controller
         ]);
 
         $inspection->reject($request->user()->id, $validated['rejection_reason']);
+
+        // Notify the submitter
+        if ($inspection->submittedByUser) {
+            app(ExpoNotificationService::class)->sendToUser(
+                $inspection->submittedByUser,
+                'Inspection Rejected',
+                "Inspection rejected: " . substr($validated['rejection_reason'], 0, 50),
+                ['type' => 'inspection', 'id' => $inspection->id]
+            );
+        }
 
         return response()->json([
             'message' => 'Inspection rejected',

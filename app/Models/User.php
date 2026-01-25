@@ -40,6 +40,7 @@ class User extends Authenticatable
         'notify_email',
         'notify_sms',
         'notify_whatsapp',
+        'notify_push',
     ];
 
     /**
@@ -65,6 +66,7 @@ class User extends Authenticatable
             'notify_email' => 'boolean',
             'notify_sms' => 'boolean',
             'notify_whatsapp' => 'boolean',
+            'notify_push' => 'boolean',
         ];
     }
 
@@ -82,6 +84,14 @@ class User extends Authenticatable
         return $this->hasMany(Notification::class)
             ->whereNull('read_at')
             ->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Push notification tokens for this user.
+     */
+    public function pushTokens(): HasMany
+    {
+        return $this->hasMany(PushToken::class);
     }
 
     // ==========================================

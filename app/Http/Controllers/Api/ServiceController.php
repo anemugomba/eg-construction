@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Services\ExpoNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -119,9 +120,21 @@ class ServiceController extends Controller
 
         $service = Service::create($validated);
 
+        // Send push notification to approvers for new service (exclude creator)
+        $service->load(['vehicle', 'site']);
+        if ($service->site) {
+            app(ExpoNotificationService::class)->notifyApprovers(
+                $service->site,
+                'New Service Created',
+                "Service - {$service->service_type} ({$validated['status']})",
+                ['type' => 'service', 'id' => $service->id],
+                $request->user()->id
+            );
+        }
+
         return response()->json([
             'message' => 'Service created successfully',
-            'data' => $service->load(['vehicle', 'site']),
+            'data' => $service,
         ], 201);
     }
 
@@ -203,6 +216,18 @@ class ServiceController extends Controller
 
         $service->submit($request->user()->id);
 
+        // Send push notification to approvers (exclude submitter)
+        $service->load(['vehicle', 'site']);
+        if ($service->site) {
+            app(ExpoNotificationService::class)->notifyApprovers(
+                $service->site,
+                'Service Pending Approval',
+                "Service request for {$service->vehicle->fleet_number} needs approval",
+                ['type' => 'approval', 'id' => $service->id],
+                $request->user()->id
+            );
+        }
+
         return response()->json([
             'message' => 'Service submitted for approval',
             'data' => $service->fresh()->load(['vehicle', 'site', 'submittedByUser']),
@@ -229,6 +254,16 @@ class ServiceController extends Controller
 
         // Update vehicle's last service tracking
         $this->updateVehicleServiceTracking($service);
+
+        // Notify the submitter
+        if ($service->submittedByUser) {
+            app(ExpoNotificationService::class)->sendToUser(
+                $service->submittedByUser,
+                'Service Approved',
+                "Your {$service->service_type} service request has been approved",
+                ['type' => 'service', 'id' => $service->id]
+            );
+        }
 
         return response()->json([
             'message' => 'Service approved',
@@ -257,6 +292,16 @@ class ServiceController extends Controller
         ]);
 
         $service->reject($request->user()->id, $validated['rejection_reason']);
+
+        // Notify the submitter
+        if ($service->submittedByUser) {
+            app(ExpoNotificationService::class)->sendToUser(
+                $service->submittedByUser,
+                'Service Rejected',
+                "Service request rejected: " . substr($validated['rejection_reason'], 0, 50),
+                ['type' => 'service', 'id' => $service->id]
+            );
+        }
 
         return response()->json([
             'message' => 'Service rejected',

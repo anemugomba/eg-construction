@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Vehicle;
 use App\Models\WatchListItem;
+use App\Services\ExpoNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -86,10 +88,25 @@ class WatchListController extends Controller
         $validated['created_by'] = $request->user()->id;
 
         $watchItem = WatchListItem::create($validated);
+        $watchItem->load(['vehicle', 'component']);
+
+        // Get the vehicle's current site and notify site staff
+        $vehicle = Vehicle::find($validated['vehicle_id']);
+        $currentSite = $vehicle->currentSite;
+
+        if ($currentSite) {
+            app(ExpoNotificationService::class)->notifySiteStaff(
+                $currentSite,
+                'New Watch List Item',
+                "New issue flagged for {$vehicle->fleet_number}",
+                ['type' => 'watch_list', 'id' => $watchItem->id],
+                $request->user()->id
+            );
+        }
 
         return response()->json([
             'message' => 'Watch list item created successfully',
-            'data' => $watchItem->load(['vehicle', 'component']),
+            'data' => $watchItem,
         ], 201);
     }
 
@@ -180,6 +197,17 @@ class WatchListController extends Controller
             'resolved_at' => now(),
             'notes' => $validated['notes'] ?? $watchListItem->notes,
         ]);
+
+        // Notify the creator if they are not the one resolving
+        if ($watchListItem->createdByUser && $watchListItem->createdByUser->id !== $request->user()->id) {
+            $watchListItem->load('vehicle');
+            app(ExpoNotificationService::class)->sendToUser(
+                $watchListItem->createdByUser,
+                'Watch List Item Resolved',
+                "Watch list item for {$watchListItem->vehicle->fleet_number} has been resolved",
+                ['type' => 'watch_list', 'id' => $watchListItem->id]
+            );
+        }
 
         return response()->json([
             'message' => 'Watch list item resolved',

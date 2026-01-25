@@ -9,6 +9,7 @@ use App\Models\VehicleExemption;
 use App\Observers\TaxPeriodObserver;
 use App\Observers\VehicleExemptionObserver;
 use App\Observers\VehicleObserver;
+use App\Services\ExpoNotificationService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -21,7 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register Expo notification service as singleton
+        $this->app->singleton(ExpoNotificationService::class);
     }
 
     /**

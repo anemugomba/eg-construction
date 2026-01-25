@@ -7,6 +7,7 @@ use App\Models\JobCard;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WatchListItem;
+use App\Services\ExpoNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -117,9 +118,21 @@ class JobCardController extends Controller
 
         $jobCard = JobCard::create($validated);
 
+        // Send push notification to approvers for new job card (exclude creator)
+        $jobCard->load(['vehicle', 'site']);
+        if ($jobCard->site) {
+            app(ExpoNotificationService::class)->notifyApprovers(
+                $jobCard->site,
+                'New Job Card Created',
+                "Job card - {$jobCard->job_type} ({$validated['status']})",
+                ['type' => 'job_card', 'id' => $jobCard->id],
+                $request->user()->id
+            );
+        }
+
         return response()->json([
             'message' => 'Job card created successfully',
-            'data' => $jobCard->load(['vehicle', 'site']),
+            'data' => $jobCard,
         ], 201);
     }
 
@@ -202,6 +215,18 @@ class JobCardController extends Controller
 
         $jobCard->submit($request->user()->id);
 
+        // Send push notification to approvers (exclude submitter)
+        $jobCard->load(['vehicle', 'site']);
+        if ($jobCard->site) {
+            app(ExpoNotificationService::class)->notifyApprovers(
+                $jobCard->site,
+                'Job Card Pending Approval',
+                "Job card #{$jobCard->job_card_number} needs your approval",
+                ['type' => 'approval', 'id' => $jobCard->id],
+                $request->user()->id
+            );
+        }
+
         return response()->json([
             'message' => 'Job card submitted for approval',
             'data' => $jobCard->fresh()->load(['vehicle', 'site', 'submittedByUser']),
@@ -225,6 +250,16 @@ class JobCardController extends Controller
         }
 
         $jobCard->approve($request->user()->id);
+
+        // Notify the submitter
+        if ($jobCard->submittedByUser) {
+            app(ExpoNotificationService::class)->sendToUser(
+                $jobCard->submittedByUser,
+                'Job Card Approved',
+                "Job card #{$jobCard->job_card_number} has been approved",
+                ['type' => 'job_card', 'id' => $jobCard->id]
+            );
+        }
 
         return response()->json([
             'message' => 'Job card approved',
@@ -253,6 +288,16 @@ class JobCardController extends Controller
         ]);
 
         $jobCard->reject($request->user()->id, $validated['rejection_reason']);
+
+        // Notify the submitter
+        if ($jobCard->submittedByUser) {
+            app(ExpoNotificationService::class)->sendToUser(
+                $jobCard->submittedByUser,
+                'Job Card Rejected',
+                "Job card #{$jobCard->job_card_number} was rejected: " . substr($validated['rejection_reason'], 0, 50),
+                ['type' => 'job_card', 'id' => $jobCard->id]
+            );
+        }
 
         return response()->json([
             'message' => 'Job card rejected',
